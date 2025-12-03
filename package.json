@@ -12,7 +12,10 @@
     "lint:fix": "oxlint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,html,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,html,css,json}\"",
-    "check": "npm run lint && npm run format:check && tsc --noEmit"
+    "check": "npm run lint && npm run format:check && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "electron",
@@ -28,10 +31,13 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^4.0.15",
     "electron": "^33.0.0",
+    "jsdom": "^27.2.0",
     "oxlint": "^1.31.0",
     "prettier": "^3.7.4",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.15"
   },
   "dependencies": {
     "electron-store": "^8.2.0"

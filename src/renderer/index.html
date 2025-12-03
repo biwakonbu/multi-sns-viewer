@@ -14,18 +14,18 @@
     <div class="container">
       <!-- メインビュー（16:9 デスクトップ版） -->
       <div class="main-view">
-        <div class="main-panel" data-sns="tiktok">
+        <div class="main-panel" data-sns="youtube">
           <!-- ピンボタン（メインパネル右上に固定） -->
           <button class="pin-button" title="メインビューを固定">
             <span class="pin-icon">📌</span>
           </button>
           <div class="panel-header">
-            <span class="panel-title">TikTok</span>
+            <span class="panel-title">YouTube</span>
           </div>
           <webview
-            id="webview-tiktok"
+            id="webview-youtube"
             class="webview webview-desktop"
-            src="https://www.tiktok.com/"
+            src="https://www.youtube.com/"
             partition="persist:sns-viewer"
             allowpopups
           ></webview>
@@ -48,14 +48,14 @@
 
       <!-- サブビュー（9:16 モバイル版、4つ横並び） -->
       <div class="sub-views">
-        <div class="sub-panel" data-sns="youtube">
+        <div class="sub-panel" data-sns="tiktok">
           <div class="panel-header">
-            <span class="panel-title">YouTube</span>
+            <span class="panel-title">TikTok</span>
           </div>
           <webview
-            id="webview-youtube"
+            id="webview-tiktok"
             class="webview webview-mobile"
-            src="https://www.youtube.com/"
+            src="https://www.tiktok.com/"
             partition="persist:sns-viewer"
             allowpopups
           ></webview>

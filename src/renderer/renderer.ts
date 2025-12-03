@@ -3,21 +3,18 @@
  * パネルの切り替え、webview の User-Agent 設定、ズーム調整
  */
 
-// モバイル版 User-Agent（iPhone Safari）
-const MOBILE_USER_AGENT =
-  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
-
-// デスクトップ版の想定サイズ（一般的なデスクトップサイト）
-const DESKTOP_VIEWPORT_WIDTH = 1280;
-const DESKTOP_VIEWPORT_HEIGHT = 720;
-
-// モバイル版の想定サイズ（iPhone 14 Pro の論理サイズ）
-const MOBILE_VIEWPORT_WIDTH = 393;
-const MOBILE_VIEWPORT_HEIGHT = 852;
-
-// ストレージキー
-const STORAGE_KEY_LAYOUT = 'layout';
-const STORAGE_KEY_PINNED = 'pinned';
+import {
+  MOBILE_USER_AGENT,
+  MOBILE_VIEWPORT_WIDTH,
+  STORAGE_KEY_LAYOUT,
+  STORAGE_KEY_PINNED,
+  calculateDesktopZoom,
+  calculateMobileZoom,
+  isValidLayoutConfig,
+  getPanelTypeByIndex,
+  getWebviewClassByPanelType,
+  getPanelClassByType,
+} from './utils';
 
 const mainView = document.querySelector<HTMLElement>('.main-view');
 const subViews = document.querySelector<HTMLElement>('.sub-views');
@@ -33,17 +30,8 @@ interface ElectronAPI {
   setConfig: (key: string, value: unknown) => Promise<void>;
 }
 
-// Window オブジェクトの api を参照
-const api: ElectronAPI = (window as unknown as { api: ElectronAPI }).api;
-
-/**
- * レイアウト設定の型定義
- */
-interface LayoutConfig {
-  mainSns: string;
-  secondarySns: string;
-  subSnsOrder: string[];
-}
+// Window オブジェクトの electronAPI を参照
+const api: ElectronAPI = (window as unknown as { electronAPI: ElectronAPI }).electronAPI;
 
 /**
  * Electron の WebviewTag 型定義
@@ -67,63 +55,43 @@ interface WebviewTag extends HTMLElement {
  */
 function adjustWebviewZoom(webview: WebviewTag, isDesktop: boolean): void {
   const rect = webview.getBoundingClientRect();
-
-  if (isDesktop) {
-    // デスクトップ版: パネルサイズに合わせてズーム調整
-    const zoomByWidth = rect.width / DESKTOP_VIEWPORT_WIDTH;
-    const zoomByHeight = rect.height / DESKTOP_VIEWPORT_HEIGHT;
-    const zoomFactor = Math.min(zoomByWidth, zoomByHeight);
-    // ズームファクターを適用（最小 0.5、最大 2.0）
-    const clampedZoom = Math.max(0.5, Math.min(2.0, zoomFactor));
-    webview.setZoomFactor(clampedZoom);
-    return;
-  }
-
-  // モバイル版: 幅と高さの両方を考慮し、コンテンツが収まる最小のズームを使用
-  const zoomByWidth = rect.width / MOBILE_VIEWPORT_WIDTH;
-  const zoomByHeight = rect.height / MOBILE_VIEWPORT_HEIGHT;
-
-  // 小さい方を採用（コンテンツ全体が収まるように）
-  const zoomFactor = Math.min(zoomByWidth, zoomByHeight);
-
-  // ズームファクターを適用（最小 0.25、最大 1.0）
-  const clampedZoom = Math.max(0.25, Math.min(1.0, zoomFactor));
+  const { clampedZoom } = isDesktop
+    ? calculateDesktopZoom(rect.width, rect.height)
+    : calculateMobileZoom(rect.width, rect.height);
   webview.setZoomFactor(clampedZoom);
 }
 
 /**
  * すべての webview を初期化する
+ * dom-ready イベント後に各種設定を行う
  */
 function initializeWebviews(): void {
-  // デスクトップ版 webview（メインビュー）
-  const desktopWebviews = document.querySelectorAll<WebviewTag>('.webview-desktop');
-  desktopWebviews.forEach((webview) => {
+  // すべての webview に対して dom-ready イベントを設定
+  const allWebviews = document.querySelectorAll<WebviewTag>('.webview');
+  allWebviews.forEach((webview) => {
     webview.addEventListener('dom-ready', () => {
-      adjustWebviewZoom(webview, true);
-    });
-  });
+      const isDesktop = webview.classList.contains('webview-desktop');
 
-  // モバイル版 webview（サブビュー）
-  const mobileWebviews = document.querySelectorAll<WebviewTag>('.webview-mobile');
-  mobileWebviews.forEach((webview) => {
-    // User-Agent をモバイルに設定
-    webview.setUserAgent(MOBILE_USER_AGENT);
+      if (!isDesktop) {
+        // モバイル版: User-Agent を設定（dom-ready 後に呼び出す）
+        webview.setUserAgent(MOBILE_USER_AGENT);
 
-    webview.addEventListener('dom-ready', () => {
-      adjustWebviewZoom(webview, false);
+        // モバイルビューポートの meta タグを注入
+        webview.executeJavaScript(`
+          (function() {
+            let viewport = document.querySelector('meta[name="viewport"]');
+            if (!viewport) {
+              viewport = document.createElement('meta');
+              viewport.name = 'viewport';
+              document.head.appendChild(viewport);
+            }
+            viewport.content = 'width=${MOBILE_VIEWPORT_WIDTH}, initial-scale=1.0, user-scalable=no';
+          })();
+        `);
+      }
 
-      // モバイルビューポートの meta タグを注入
-      webview.executeJavaScript(`
-        (function() {
-          let viewport = document.querySelector('meta[name="viewport"]');
-          if (!viewport) {
-            viewport = document.createElement('meta');
-            viewport.name = 'viewport';
-            document.head.appendChild(viewport);
-          }
-          viewport.content = 'width=${MOBILE_VIEWPORT_WIDTH}, initial-scale=1.0, user-scalable=no';
-        })();
-      `);
+      // ズーム調整
+      adjustWebviewZoom(webview, isDesktop);
     });
   });
 }
@@ -152,22 +120,39 @@ function setupResizeObserver(): void {
 }
 
 /**
- * 現在のレイアウトを保存する
+ * ピンボタンを現在のメインパネルに移動する
  */
-function saveLayout(): void {
+function movePinButtonToMainPanel(): void {
+  const pinButton = document.querySelector<HTMLElement>('.pin-button');
+  const mainPanel = document.querySelector<HTMLElement>('.main-panel');
+  if (pinButton && mainPanel && pinButton.parentElement !== mainPanel) {
+    mainPanel.insertBefore(pinButton, mainPanel.firstChild);
+  }
+}
+
+/**
+ * 現在のレイアウトを保存する
+ * slots[0] = メイン, slots[1] = セカンダリ, slots[2..] = サブ
+ */
+async function saveLayout(): Promise<void> {
   if (!mainView || !subViews) return;
 
+  const slots: string[] = [];
+
+  // メイン
   const mainPanel = mainView.querySelector<HTMLElement>('.main-panel');
-  const mainSns = mainPanel?.dataset.sns || '';
+  slots.push(mainPanel?.dataset.sns || '');
 
+  // セカンダリ
   const secondaryPanel = mainView.querySelector<HTMLElement>('.secondary-panel');
-  const secondarySns = secondaryPanel?.dataset.sns || '';
+  slots.push(secondaryPanel?.dataset.sns || '');
 
+  // サブ
   const subPanels = subViews.querySelectorAll<HTMLElement>('.sub-panel');
-  const subSnsOrder = Array.from(subPanels).map((panel) => panel.dataset.sns || '');
+  subPanels.forEach((panel) => slots.push(panel.dataset.sns || ''));
 
-  const config: LayoutConfig = { mainSns, secondarySns, subSnsOrder };
-  api.setConfig(STORAGE_KEY_LAYOUT, config);
+  console.log('Saving layout:', slots);
+  await api.setConfig(STORAGE_KEY_LAYOUT, { slots });
 }
 
 /**
@@ -176,75 +161,53 @@ function saveLayout(): void {
 async function restoreLayout(): Promise<void> {
   if (!mainView || !subViews) return;
 
-  const config = (await api.getConfig(STORAGE_KEY_LAYOUT)) as LayoutConfig | undefined;
-  if (!config) return;
+  const config = await api.getConfig(STORAGE_KEY_LAYOUT);
+  console.log('Restoring layout:', config);
+  if (!isValidLayoutConfig(config)) return;
 
   try {
-    // 現在のメインパネルとセカンダリパネルを取得
-    const currentMainPanel = mainView.querySelector<HTMLElement>('.main-panel');
-    const currentSecondaryPanel = mainView.querySelector<HTMLElement>('.secondary-panel');
-    if (!currentMainPanel) return;
+    // SNS名からパネルを取得するマップ
+    const panelMap = new Map<string, HTMLElement>();
+    document.querySelectorAll<HTMLElement>('[data-sns]').forEach((panel) => {
+      if (panel.dataset.sns) panelMap.set(panel.dataset.sns, panel);
+    });
 
-    const currentMainSns = currentMainPanel.dataset.sns;
-    const currentSecondarySns = currentSecondaryPanel?.dataset.sns;
-
-    // セカンダリパネルとメインパネルの入れ替えが必要な場合
-    if (config.secondarySns && currentSecondarySns !== config.secondarySns) {
-      // セカンダリがメインになるべき場合
-      if (currentSecondarySns === config.mainSns && currentMainSns === config.secondarySns) {
-        // クラスを入れ替え
-        if (currentSecondaryPanel) {
-          currentMainPanel.classList.remove('main-panel');
-          currentMainPanel.classList.add('secondary-panel');
-          currentSecondaryPanel.classList.remove('secondary-panel');
-          currentSecondaryPanel.classList.add('main-panel');
-        }
+    // 全パネルのクラスをリセット
+    panelMap.forEach((panel) => {
+      panel.classList.remove('main-panel', 'secondary-panel', 'sub-panel');
+      const webview = panel.querySelector<WebviewTag>('.webview');
+      if (webview) {
+        webview.classList.remove('webview-desktop', 'webview-mobile');
       }
-    }
+    });
 
-    // メインパネルがサブパネルからの昇格が必要な場合
-    if (currentMainSns !== config.mainSns && currentSecondarySns !== config.mainSns) {
-      const targetPanel = document.querySelector<HTMLElement>(`[data-sns="${config.mainSns}"]`);
-      if (targetPanel && targetPanel.classList.contains('sub-panel')) {
-        // webview のクラスを入れ替え
-        const mainWebview = currentMainPanel.querySelector<WebviewTag>('.webview');
-        const subWebview = targetPanel.querySelector<WebviewTag>('.webview');
+    // スロット順にパネルを配置
+    config.slots.forEach((sns: string, index: number) => {
+      const panel = panelMap.get(sns);
+      if (!panel) return;
 
-        if (mainWebview && subWebview) {
-          mainWebview.classList.remove('webview-desktop');
-          mainWebview.classList.add('webview-mobile');
-          mainWebview.setUserAgent(MOBILE_USER_AGENT);
+      const panelType = getPanelTypeByIndex(index);
+      const panelClass = getPanelClassByType(panelType);
+      const webviewClass = getWebviewClassByPanelType(panelType);
+      const webview = panel.querySelector<WebviewTag>('.webview');
 
-          subWebview.classList.remove('webview-mobile');
-          subWebview.classList.add('webview-desktop');
-          subWebview.setUserAgent('');
-        }
-
-        // パネルのクラスを入れ替え
-        currentMainPanel.classList.remove('main-panel');
-        currentMainPanel.classList.add('sub-panel');
-        targetPanel.classList.remove('sub-panel');
-        targetPanel.classList.add('main-panel');
-
-        // DOM を移動
-        const subPanelIndex = Array.from(subViews.children).indexOf(targetPanel);
-        mainView.appendChild(targetPanel);
-
-        if (subPanelIndex >= 0 && subPanelIndex < subViews.children.length) {
-          subViews.insertBefore(currentMainPanel, subViews.children[subPanelIndex]);
-        } else {
-          subViews.appendChild(currentMainPanel);
-        }
+      panel.classList.add(panelClass);
+      if (webview) {
+        webview.classList.add(webviewClass);
       }
-    }
 
-    // サブパネルの順序を復元
-    config.subSnsOrder.forEach((sns) => {
-      const panel = subViews.querySelector<HTMLElement>(`[data-sns="${sns}"]`);
-      if (panel) {
+      // DOM配置
+      if (panelType === 'main') {
+        mainView.insertBefore(panel, mainView.firstChild);
+      } else if (panelType === 'secondary') {
+        mainView.appendChild(panel);
+      } else {
         subViews.appendChild(panel);
       }
     });
+
+    // ピンボタンを新しいメインパネルに移動
+    movePinButtonToMainPanel();
   } catch (e) {
     console.error('Failed to restore layout:', e);
   }
@@ -253,8 +216,8 @@ async function restoreLayout(): Promise<void> {
 /**
  * ピン止め状態を保存する
  */
-function savePinnedState(): void {
-  api.setConfig(STORAGE_KEY_PINNED, isPinned);
+async function savePinnedState(): Promise<void> {
+  await api.setConfig(STORAGE_KEY_PINNED, isPinned);
 }
 
 /**
@@ -288,7 +251,7 @@ function createPlaceholder(element: HTMLElement): HTMLElement {
 /**
  * セカンダリパネルとメインパネルを入れ替える
  */
-function swapWithSecondary(secondaryPanel: HTMLElement): void {
+async function swapWithSecondary(secondaryPanel: HTMLElement): Promise<void> {
   // ピン固定時は切り替え無効
   if (isPinned) return;
   if (!mainView) return;
@@ -334,11 +297,11 @@ function swapWithSecondary(secondaryPanel: HTMLElement): void {
   mainPanel.style.display = '';
   secondaryPanel.style.display = '';
 
-  // webview をリロードしてズームを再調整
-  if (mainWebview && secondaryWebview) {
-    mainWebview.reload();
-    secondaryWebview.reload();
+  // ピンボタンを新しいメインパネルに移動
+  movePinButtonToMainPanel();
 
+  // ズームを再調整
+  if (mainWebview && secondaryWebview) {
     setTimeout(() => {
       adjustWebviewZoom(mainWebview, false);
       adjustWebviewZoom(secondaryWebview, true);
@@ -346,13 +309,13 @@ function swapWithSecondary(secondaryPanel: HTMLElement): void {
   }
 
   // レイアウトを保存
-  saveLayout();
+  await saveLayout();
 }
 
 /**
  * サブパネルとメインパネルを入れ替える
  */
-function swapPanels(clickedSubPanel: HTMLElement): void {
+async function swapPanels(clickedSubPanel: HTMLElement): Promise<void> {
   // ピン固定時は切り替え無効
   if (isPinned) return;
   if (!mainView || !subViews) return;
@@ -374,10 +337,6 @@ function swapPanels(clickedSubPanel: HTMLElement): void {
     subWebview.classList.remove('webview-mobile');
     subWebview.classList.add('webview-desktop');
     subWebview.setUserAgent(''); // デフォルトに戻す
-
-    // ページをリロードして User-Agent を反映
-    mainWebview.reload();
-    subWebview.reload();
   }
 
   // パネルのクラスを入れ替え
@@ -406,6 +365,9 @@ function swapPanels(clickedSubPanel: HTMLElement): void {
     subViews.appendChild(currentMainPanel);
   }
 
+  // ピンボタンを新しいメインパネルに移動
+  movePinButtonToMainPanel();
+
   // ズームを再調整
   setTimeout(() => {
     if (mainWebview) adjustWebviewZoom(mainWebview, false);
@@ -413,7 +375,7 @@ function swapPanels(clickedSubPanel: HTMLElement): void {
   }, 100);
 
   // レイアウトを保存
-  saveLayout();
+  await saveLayout();
 }
 
 /**
@@ -464,7 +426,7 @@ webviews.forEach((webview) => {
 /**
  * ピン止め状態を切り替える
  */
-function togglePin(): void {
+async function togglePin(): Promise<void> {
   isPinned = !isPinned;
 
   const pinButton = document.querySelector<HTMLElement>('.pin-button');
@@ -476,7 +438,7 @@ function togglePin(): void {
   document.body.classList.toggle('pinned', isPinned);
 
   // ピン止め状態を保存
-  savePinnedState();
+  await savePinnedState();
 }
 
 /**
