@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    />
+    <title>Multi SNS Viewer</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- メインビュー（フォーカス中のSNS） -->
+      <div class="main-view">
+        <div class="main-panel" data-sns="tiktok">
+          <div class="panel-header">
+            <span class="panel-title">TikTok</span>
+          </div>
+          <webview
+            id="webview-tiktok"
+            class="webview"
+            src="https://www.tiktok.com/"
+            allowpopups
+          ></webview>
+        </div>
+      </div>
+
+      <!-- サブビュー（他のSNS） -->
+      <div class="sub-views">
+        <div class="sub-panel" data-sns="youtube">
+          <div class="panel-header">
+            <span class="panel-title">YouTube</span>
+          </div>
+          <webview
+            id="webview-youtube"
+            class="webview"
+            src="https://www.youtube.com/"
+            allowpopups
+          ></webview>
+        </div>
+
+        <div class="sub-panel" data-sns="x">
+          <div class="panel-header">
+            <span class="panel-title">X</span>
+          </div>
+          <webview id="webview-x" class="webview" src="https://x.com/" allowpopups></webview>
+        </div>
+
+        <div class="sub-panel" data-sns="instagram">
+          <div class="panel-header">
+            <span class="panel-title">Instagram</span>
+          </div>
+          <webview
+            id="webview-instagram"
+            class="webview"
+            src="https://www.instagram.com/"
+            allowpopups
+          ></webview>
+        </div>
+
+        <div class="sub-panel" data-sns="threads">
+          <div class="panel-header">
+            <span class="panel-title">Threads</span>
+          </div>
+          <webview
+            id="webview-threads"
+            class="webview"
+            src="https://www.threads.net/"
+            allowpopups
+          ></webview>
+        </div>
+      </div>
+    </div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
