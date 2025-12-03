@@ -13,7 +13,12 @@ import path from 'path';
 const electron = require('electron') as typeof import('electron');
 const app: App = electron.app;
 const BrowserWindow: typeof BrowserWindowType = electron.BrowserWindow;
-const { session } = electron;
+const { session, ipcMain } = electron;
+
+// electron-store で設定を永続化
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Store = require('electron-store');
+const store = new Store();
 
 // メインウィンドウの参照を保持
 let mainWindow: BrowserWindowType | null = null;
@@ -41,6 +46,15 @@ function createWindow(): void {
     mainWindow = null;
   });
 }
+
+// IPC ハンドラー: 設定の読み書き
+ipcMain.handle('config:get', (_event, key: string) => {
+  return store.get(key);
+});
+
+ipcMain.handle('config:set', (_event, key: string, value: unknown) => {
+  store.set(key, value);
+});
 
 // Electron の初期化完了後にウィンドウを作成
 app.whenReady().then(() => {

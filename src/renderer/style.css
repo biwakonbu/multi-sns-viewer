@@ -28,6 +28,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 12px;
   position: relative;
   /* ウィンドウ高さの50%を上限に */
   height: 50vh;
@@ -35,6 +36,7 @@ body {
 }
 
 .main-panel {
+  position: relative;
   height: 100%;
   aspect-ratio: 16 / 9;
   max-width: 100%;
@@ -61,6 +63,54 @@ body {
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.5px;
+}
+
+/* ===== セカンダリパネル（メインビュー横のSora、モバイルサイズ） ===== */
+.secondary-panel {
+  height: 100%;
+  aspect-ratio: 9 / 16;
+  display: flex;
+  flex-direction: column;
+  background: #0f0f23;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.secondary-panel:hover {
+  transform: translateY(-4px);
+  border-color: rgba(102, 126, 234, 0.5);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+}
+
+.secondary-panel .panel-header {
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  position: relative;
+  z-index: 10; /* webview より上に配置 */
+}
+
+.secondary-panel:hover .panel-header {
+  background: linear-gradient(90deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%);
+}
+
+.secondary-panel .panel-title {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.secondary-panel:hover .panel-title {
+  color: #fff;
 }
 
 /* ===== サブビュー（9:16 モバイル版、4つ横並び） ===== */
@@ -104,6 +154,8 @@ body {
   transition: background 0.3s ease;
   flex-shrink: 0;
   cursor: pointer; /* ヘッダーのみクリック可能 */
+  position: relative;
+  z-index: 10; /* webview より上に配置 */
 }
 
 .sub-panel:hover .panel-header {
@@ -134,11 +186,11 @@ body {
   pointer-events: auto;
 }
 
-/* ===== ピンボタン（メインビュー右上に固定） ===== */
+/* ===== ピンボタン（メインパネル右上に固定） ===== */
 .pin-button {
   position: absolute;
   top: 8px;
-  right: calc(50% - 55vh * 16 / 9 / 2 + 8px);
+  right: 8px;
   z-index: 10;
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -166,17 +218,20 @@ body {
 }
 
 /* ピン固定時のスタイル */
-body.pinned .sub-panel .panel-header {
+body.pinned .sub-panel .panel-header,
+body.pinned .secondary-panel .panel-header {
   cursor: not-allowed;
   opacity: 0.7;
 }
 
-body.pinned .sub-panel:hover {
+body.pinned .sub-panel:hover,
+body.pinned .secondary-panel:hover {
   transform: none;
   border-color: rgba(255, 255, 255, 0.05);
 }
 
-body.pinned .sub-panel .webview {
+body.pinned .sub-panel .webview,
+body.pinned .secondary-panel .webview {
   pointer-events: auto;
   cursor: auto;
 }

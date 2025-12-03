@@ -14,11 +14,11 @@
     <div class="container">
       <!-- メインビュー（16:9 デスクトップ版） -->
       <div class="main-view">
-        <!-- ピンボタン（メインビューに固定） -->
-        <button class="pin-button" title="メインビューを固定">
-          <span class="pin-icon">📌</span>
-        </button>
         <div class="main-panel" data-sns="tiktok">
+          <!-- ピンボタン（メインパネル右上に固定） -->
+          <button class="pin-button" title="メインビューを固定">
+            <span class="pin-icon">📌</span>
+          </button>
           <div class="panel-header">
             <span class="panel-title">TikTok</span>
           </div>
@@ -26,6 +26,20 @@
             id="webview-tiktok"
             class="webview webview-desktop"
             src="https://www.tiktok.com/"
+            partition="persist:sns-viewer"
+            allowpopups
+          ></webview>
+        </div>
+
+        <!-- セカンダリパネル（Sora）- サブパネルと同様にモバイルサイズ -->
+        <div class="secondary-panel" data-sns="sora">
+          <div class="panel-header">
+            <span class="panel-title">Sora</span>
+          </div>
+          <webview
+            id="webview-sora"
+            class="webview webview-mobile"
+            src="https://sora.com/"
             partition="persist:sns-viewer"
             allowpopups
           ></webview>

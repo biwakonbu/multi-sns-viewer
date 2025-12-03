@@ -1,9 +1,10 @@
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 /**
  * メインプロセスとレンダラープロセス間のAPIを定義
- * 現時点では将来の拡張用に空のオブジェクトを公開
  */
 contextBridge.exposeInMainWorld('electronAPI', {
-  // 将来的にメインプロセスとの通信が必要になった場合に追加
+  // 設定の保存・読み込み
+  getConfig: (key: string) => ipcRenderer.invoke('config:get', key),
+  setConfig: (key: string, value: unknown) => ipcRenderer.invoke('config:set', key, value),
 });
