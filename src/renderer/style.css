@@ -83,7 +83,7 @@ body {
   background: #0f0f23;
   border-radius: 10px;
   overflow: hidden;
-  cursor: pointer;
+  /* cursor: pointer は削除（ヘッダーのみクリック可能） */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
@@ -103,6 +103,7 @@ body {
   gap: 6px;
   transition: background 0.3s ease;
   flex-shrink: 0;
+  cursor: pointer; /* ヘッダーのみクリック可能 */
 }
 
 .sub-panel:hover .panel-header {
@@ -128,9 +129,9 @@ body {
   background: #000;
 }
 
-/* サブパネルのwebviewはクリック無効（ヘッダーでのみ切り替え） */
+/* サブパネルのwebviewは操作可能（切り替えはヘッダークリックで実行） */
 .sub-panel .webview {
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 /* ===== ピンボタン（メインビュー右上に固定） ===== */

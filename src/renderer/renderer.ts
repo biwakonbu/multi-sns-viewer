@@ -33,7 +33,7 @@ interface WebviewTag extends HTMLElement {
   addEventListener(
     type: string,
     listener: EventListenerOrEventListenerObject,
-    options?: boolean | AddEventListenerOptions,
+    options?: boolean | AddEventListenerOptions
   ): void;
 }
 
@@ -194,12 +194,22 @@ if (subViews) {
 }
 
 /**
- * webview のエラーハンドリング
+ * webview のエラーハンドリングとポップアップ処理
  */
-const webviews = document.querySelectorAll<HTMLElement>('.webview');
+const webviews = document.querySelectorAll<WebviewTag>('.webview');
 webviews.forEach((webview) => {
   webview.addEventListener('did-fail-load', (event) => {
     console.error('Webview failed to load:', event);
+  });
+
+  // 認証ポップアップなどの新しいウィンドウを同じwebview内で開く
+  webview.addEventListener('new-window', (event: Event) => {
+    const e = event as CustomEvent & { url: string; disposition: string };
+    // 認証関連のURLは同じwebviewで開く
+    if (e.url) {
+      e.preventDefault?.();
+      webview.setAttribute('src', e.url);
+    }
   });
 });
 

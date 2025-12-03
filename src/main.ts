@@ -5,7 +5,7 @@
  * これは Electron が Electron プロセス内でのみ API を提供するため。
  * Node.js 単体で require('electron') すると実行可能パスが返される。
  */
-import type { App, BrowserWindow as BrowserWindowType } from 'electron';
+import type { App, BrowserWindow as BrowserWindowType, WebContents } from 'electron';
 import path from 'path';
 
 // ランタイムで Electron モジュールを取得
@@ -13,6 +13,7 @@ import path from 'path';
 const electron = require('electron') as typeof import('electron');
 const app: App = electron.app;
 const BrowserWindow: typeof BrowserWindowType = electron.BrowserWindow;
+const { session } = electron;
 
 // メインウィンドウの参照を保持
 let mainWindow: BrowserWindowType | null = null;
@@ -43,6 +44,36 @@ function createWindow(): void {
 
 // Electron の初期化完了後にウィンドウを作成
 app.whenReady().then(() => {
+  // webview 用のセッション設定
+  // persist: を付けると認証情報が永続化される
+  const webviewSession = session.fromPartition('persist:sns-viewer');
+
+  // WebAuthn（パスキー）を有効化
+  webviewSession.setPermissionRequestHandler(
+    (
+      _webContents: WebContents,
+      permission: string,
+      callback: (permissionGranted: boolean) => void
+    ) => {
+      // 許可する権限リスト
+      const allowedPermissions = [
+        'media', // カメラ・マイク
+        'geolocation', // 位置情報
+        'notifications', // 通知
+        'fullscreen', // フルスクリーン
+        'pointerLock', // ポインターロック
+        'clipboard-read', // クリップボード読み取り
+        'clipboard-sanitized-write', // クリップボード書き込み
+      ];
+
+      if (allowedPermissions.includes(permission)) {
+        callback(true);
+      } else {
+        callback(false);
+      }
+    }
+  );
+
   createWindow();
 
   // macOS: ドックアイコンクリック時にウィンドウがなければ再作成
