@@ -11,6 +11,33 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <!-- 統一設定パネル -->
+    <div class="settings-panel">
+      <div class="settings-content">
+        <div class="settings-row">
+          <span class="settings-label">Zoom</span>
+          <div class="settings-control">
+            <button class="settings-btn zoom-btn zoom-out" title="縮小">−</button>
+            <span class="zoom-level">100%</span>
+            <button class="settings-btn zoom-btn zoom-in" title="拡大">+</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Volume</span>
+          <div class="settings-control">
+            <button class="settings-btn volume-btn volume-down" title="音量下げる">
+              <span class="volume-icon">🔉</span>
+            </button>
+            <span class="volume-level">50%</span>
+            <button class="settings-btn volume-btn volume-up" title="音量上げる">🔊</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 設定トグルボタン -->
+    <button class="settings-toggle" title="設定">⚙️</button>
+
     <div class="container">
       <!-- メインビュー（16:9 デスクトップ版） -->
       <div class="main-view">
